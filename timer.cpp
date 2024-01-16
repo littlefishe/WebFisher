@@ -79,10 +79,11 @@ bool Timer::reset(uint64_t ms, bool from_now) {
     return true;
 }
 
-void TimerManager::addTimer(uint64_t ms, std::function<void()> cb, bool recurring) {
+Timer::TimerRef TimerManager::addTimer(uint64_t ms, std::function<void()> cb, bool recurring) {
     Timer::TimerRef timer(new Timer(ms, cb, recurring, this));
     std::unique_lock lock(mutex_);
     addTimer(timer);
+    return timer;
 }
 
 static void OnTimer(std::weak_ptr<void> weak_cond, std::function<void()> cb) {
@@ -94,7 +95,7 @@ static void OnTimer(std::weak_ptr<void> weak_cond, std::function<void()> cb) {
 Timer::TimerRef TimerManager::addConditionTimer(uint64_t ms, std::function<void()> cb
                                     ,std::weak_ptr<void> weak_cond
                                     ,bool recurring) {
-    addTimer(ms, std::bind(&OnTimer, weak_cond, cb), recurring);
+    return addTimer(ms, std::bind(&OnTimer, weak_cond, cb), recurring);
 }
 
 uint64_t TimerManager::getNextTimer() {
@@ -127,7 +128,7 @@ void TimerManager::listExpiredCb(std::vector<std::function<void()> >& cbs) {
 
     // get all timer from begin to iter with next_ <= now
     auto it = timers_.lower_bound(now_timer);
-    while(it != timers_.end() && (*it)->next_ <= now_ms) {
+    while(it != timers_.end() && (*it)->next_ == now_ms) {
         ++it;
     }
     expired.insert(expired.begin(), timers_.begin(), it);

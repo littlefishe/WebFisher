@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <string.h>
-#include <unistd.h>
+#include "hook.h"
 
 namespace fisher {
 
@@ -327,7 +327,6 @@ void IOManager::idle() {
     while(true) {
         uint64_t next_timeout = ~0ull;
         if(stopping(next_timeout)) {
-            FISHER_LOG_INFO(g_logger) << "tickle " << n_idle_thread_;
             break;
         }
         FISHER_LOG_INFO(g_logger) << "idle";
@@ -337,7 +336,7 @@ void IOManager::idle() {
             next_timeout = MAX_TIMEOUT;
         }
         int rt = epoll_wait(epfd_, events, MAX_EVENTS, (int)next_timeout);
-        if (rt <= 0 || errno == EINTR) {
+        if (rt < 0 || errno == EINTR) {
             continue;
         }
         FISHER_LOG_INFO(g_logger) << "wake up";

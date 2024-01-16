@@ -97,7 +97,7 @@ public:
      * @param[in] cb 定时器回调函数
      * @param[in] recurring 是否循环定时器
      */
-    void addTimer(uint64_t ms, std::function<void()> cb
+    Timer::TimerRef addTimer(uint64_t ms, std::function<void()> cb
                         ,bool recurring = false);
 
     /**

@@ -1,5 +1,6 @@
 #include <atomic>
 #include <cassert>
+#include <signal.h>
 #include "fiber.h"
 // #include "config.h"
 // #include "macro.h"
@@ -15,7 +16,7 @@ static std::atomic<uint64_t> s_fiber_count {0};
 
 static thread_local Fiber::FiberRef t_fiber = nullptr; // this fiber
 
-uint32_t g_fiber_stack_size = 8 * 1024;
+uint32_t g_fiber_stack_size = SIGSTKSZ;
 // static ConfigVar<uint32_t>::ptr g_fiber_stack_size =
 //     Config::Lookup<uint32_t>("fiber.stack_size", 128 * 1024, "fiber stack size");
 
@@ -54,7 +55,7 @@ Fiber::Fiber(std::function<void()> cb, size_t stacksize)
     :fid_(++s_fiber_id), cb_(cb) {
     ++s_fiber_count;
     stacksize_ = stacksize ? stacksize : g_fiber_stack_size;
-    stack_ = StackAllocator::Alloc(stacksize);
+    stack_ = StackAllocator::Alloc(stacksize_);
     if(getcontext(&ctx_)) {
         // SYLAR_ASSERT2(false, "getcontext");
         assert(false);

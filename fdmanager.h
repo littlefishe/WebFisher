@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <shared_mutex>
 #include "singleton.h"
 
 namespace fisher {
@@ -26,39 +27,28 @@ public:
     /**
      * @brief 是否初始化完成
      */
-    bool isInit() const { return m_isInit;}
+    bool isInit() const { return isInit_;}
 
     /**
      * @brief 是否socket
      */
-    bool isSocket() const { return m_isSocket;}
+    bool isSocket() const { return isSocket_;}
 
     /**
      * @brief 是否已关闭
      */
-    bool isClose() const { return m_isClosed;}
-
-    /**
-     * @brief 设置用户主动设置非阻塞
-     * @param[in] v 是否阻塞
-     */
-    void setUserNonblock(bool v) { m_userNonblock = v;}
-
-    /**
-     * @brief 获取是否用户主动设置的非阻塞
-     */
-    bool getUserNonblock() const { return m_userNonblock;}
+    bool isClose() const { return isClosed_;}
 
     /**
      * @brief 设置系统非阻塞
      * @param[in] v 是否阻塞
      */
-    void setSysNonblock(bool v) { m_sysNonblock = v;}
+    void setNonblock(bool v) { nonblock_ = v;}
 
     /**
      * @brief 获取系统非阻塞
      */
-    bool getSysNonblock() const { return m_sysNonblock;}
+    bool getNonblock() const { return nonblock_;}
 
     /**
      * @brief 设置超时时间
@@ -84,7 +74,7 @@ private:
     /// 是否socket
     bool isSocket_: 1;
     /// 是否hook非阻塞
-    bool sysNonblock_: 1;
+    bool nonblock_: 1;
     /// 是否关闭
     bool isClosed_: 1;
     /// 文件句柄

@@ -2,7 +2,7 @@
 #include "scheduler.h"
 #include "log.h"
 // #include "macro.h"
-// #include "hook.h"
+#include "hook.h"
 
 namespace fisher {
 
@@ -63,6 +63,7 @@ void Scheduler::stop() {
     try_stop_ = true;
     for(size_t i = 0; i < n_thread_; ++i) {
         tickle();
+        sleep(1);
     }
     for(auto & i : threadpool_) {
         i.join();
@@ -79,7 +80,7 @@ Fiber::FiberRef Scheduler::GetMainFiber() {
 
 void Scheduler::run() {
     FISHER_LOG_INFO(g_logger) << name_ << " run";
-    // set_hook_enable(true);
+    set_hook_enable(true);
     setThis();
     t_mainfiber.reset(new Fiber());
     Fiber::FiberRef idle_fiber(new Fiber(std::bind(&Scheduler::idle, this)));

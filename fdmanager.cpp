@@ -3,14 +3,14 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <mutex>
 
-namespace sylar {
+namespace fisher {
 
 FdCtx::FdCtx(int fd)
     :isInit_(false)
     ,isSocket_(false)
-    ,sysNonblock_(false)
-    ,userNonblock_(false)
+    ,nonblock_(false)
     ,isClosed_(false)
     ,fd_(fd)
     ,recvTimeout_(-1)
@@ -29,80 +29,76 @@ bool FdCtx::init() {
     sendTimeout_ = -1;
 
     struct stat fd_stat;
-    if(-1 == fstat(m_fd, &fd_stat)) {
-        m_isInit = false;
-        m_isSocket = false;
+    // no such fd
+    if(-1 == fstat(fd_, &fd_stat)) {
+        isInit_ = false;
+        isSocket_ = false;
     } else {
-        m_isInit = true;
-        m_isSocket = S_ISSOCK(fd_stat.st_mode);
+        isInit_ = true;
+        isSocket_ = S_ISSOCK(fd_stat.st_mode);
     }
 
-    if(m_isSocket) {
-        int flags = fcntl_f(m_fd, F_GETFL, 0);
+    if(isSocket_) {
+        int flags = fcntl(fd_, F_GETFL, 0);
         if(!(flags & O_NONBLOCK)) {
-            fcntl_f(m_fd, F_SETFL, flags | O_NONBLOCK);
+            fcntl(fd_, F_SETFL, flags | O_NONBLOCK);
         }
-        m_sysNonblock = true;
+        nonblock_ = true;
     } else {
-        m_sysNonblock = false;
+        nonblock_ = false;
     }
 
-    m_userNonblock = false;
-    m_isClosed = false;
-    return m_isInit;
+    isClosed_ = false;
+    return isInit_;
 }
 
 void FdCtx::setTimeout(int type, uint64_t v) {
     if(type == SO_RCVTIMEO) {
-        m_recvTimeout = v;
+        recvTimeout_ = v;
     } else {
-        m_sendTimeout = v;
+        sendTimeout_ = v;
     }
 }
 
 uint64_t FdCtx::getTimeout(int type) {
     if(type == SO_RCVTIMEO) {
-        return m_recvTimeout;
+        return recvTimeout_;
     } else {
-        return m_sendTimeout;
+        return sendTimeout_;
     }
 }
 
 FdManager::FdManager() {
-    m_datas.resize(64);
+    datas_.resize(64);
 }
 
-FdCtx::ptr FdManager::get(int fd, bool auto_create) {
+FdCtx::FdCtxRef FdManager::get(int fd, bool auto_create) {
     if(fd == -1) {
         return nullptr;
     }
-    RWMutexType::ReadLock lock(m_mutex);
-    if((int)m_datas.size() <= fd) {
-        if(auto_create == false) {
-            return nullptr;
-        }
-    } else {
-        if(m_datas[fd] || !auto_create) {
-            return m_datas[fd];
+    {
+        std::shared_lock lock(mutex_);
+        if((int)datas_.size() > fd && datas_[fd]) {
+            return datas_[fd];
         }
     }
-    lock.unlock();
-
-    RWMutexType::WriteLock lock2(m_mutex);
-    FdCtx::ptr ctx(new FdCtx(fd));
-    if(fd >= (int)m_datas.size()) {
-        m_datas.resize(fd * 1.5);
+    if(auto_create == false) {
+        return nullptr;
     }
-    m_datas[fd] = ctx;
-    return ctx;
+    std::unique_lock lock(mutex_);
+    if(fd >= (int)datas_.size()) {
+        datas_.resize(fd * 1.5);
+    }
+    datas_[fd] = std::make_shared<FdCtx>(fd);
+    return datas_[fd];
 }
 
 void FdManager::del(int fd) {
-    RWMutexType::WriteLock lock(m_mutex);
-    if((int)m_datas.size() <= fd) {
+    std::unique_lock lock(mutex_);
+    if((int)datas_.size() <= fd) {
         return;
     }
-    m_datas[fd].reset();
+    datas_[fd].reset();
 }
 
 }

@@ -1,3 +1,4 @@
+#pragma once
 namespace fisher {
 
 template <class T>
